@@ -1,7 +1,20 @@
-const Booking = require('../models/Booking');
-const Spot = require('../models/Spot');
+import Booking from '../models/Booking.js';
+import Spot from '../models/Spot.js';
 
-const requestBooking = async (req, res) => {
+export const listBookings = async (req, res) => {
+  try {
+    const bookings = await Booking.find()
+      .populate('driver_id', 'full_name email phone_number')
+      .populate('host_id', 'full_name email phone_number')
+      .populate('spot_id', 'street_address hourly_rate');
+
+    return res.status(200).json({ message: 'Bookings fetched successfully.', bookings });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to fetch bookings.', error: error.message });
+  }
+};
+
+export const requestBooking = async (req, res) => {
   try {
     const { spot_id, scheduled_checkin, scheduled_checkout } = req.body;
 
@@ -41,7 +54,7 @@ const requestBooking = async (req, res) => {
   }
 };
 
-const respondToBooking = async (req, res) => {
+export const respondToBooking = async (req, res) => {
   try {
     const { id } = req.params;
     const { decision } = req.body;
@@ -68,7 +81,7 @@ const respondToBooking = async (req, res) => {
   }
 };
 
-const checkInBooking = async (req, res) => {
+export const checkInBooking = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -91,7 +104,7 @@ const checkInBooking = async (req, res) => {
   }
 };
 
-const checkOutBooking = async (req, res) => {
+export const checkOutBooking = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -112,11 +125,4 @@ const checkOutBooking = async (req, res) => {
   } catch (error) {
     return res.status(500).json({ message: 'Failed to check out booking.', error: error.message });
   }
-};
-
-module.exports = {
-  requestBooking,
-  respondToBooking,
-  checkInBooking,
-  checkOutBooking,
 };

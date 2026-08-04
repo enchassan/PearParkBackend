@@ -10,4 +10,4 @@ const rbacMiddleware = (req, res, next) => {
   }
 };
 
-module.exports = rbacMiddleware;
+export default rbacMiddleware;

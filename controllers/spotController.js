@@ -1,6 +1,16 @@
-const Spot = require('../models/Spot');
+import Spot from '../models/Spot.js';
 
-const createSpot = async (req, res) => {
+export const listSpots = async (req, res) => {
+  try {
+    const spots = await Spot.find().populate('host_id', 'full_name email phone_number');
+
+    return res.status(200).json({ message: 'Spots fetched successfully.', spots });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to fetch spots.', error: error.message });
+  }
+};
+
+export const createSpot = async (req, res) => {
   try {
     const { street_address, hourly_rate, spot_images, is_active, spot_status, location } = req.body;
 
@@ -31,7 +41,24 @@ const createSpot = async (req, res) => {
   }
 };
 
-const toggleSpot = async (req, res) => {
+export const deleteSpot = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const spot = await Spot.findById(id);
+
+    if (!spot) {
+      return res.status(404).json({ message: 'Spot not found.' });
+    }
+
+    await spot.deleteOne();
+
+    return res.status(200).json({ message: 'Spot deleted successfully.' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to delete spot.', error: error.message });
+  }
+};
+
+export const toggleSpot = async (req, res) => {
   try {
     const { id } = req.params;
     const spot = await Spot.findById(id);
@@ -53,7 +80,7 @@ const toggleSpot = async (req, res) => {
   }
 };
 
-const getNearbySpots = async (req, res) => {
+export const getNearbySpots = async (req, res) => {
   try {
     const { lat, lng, radius, maxPrice } = req.query;
 
@@ -89,10 +116,4 @@ const getNearbySpots = async (req, res) => {
   } catch (error) {
     return res.status(500).json({ message: 'Failed to fetch nearby spots.', error: error.message });
   }
-};
-
-module.exports = {
-  createSpot,
-  toggleSpot,
-  getNearbySpots,
 };

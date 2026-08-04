@@ -1,11 +1,13 @@
-const express = require('express');
-const authMiddleware = require('../middleware/authMiddleware');
-const { createSpot, toggleSpot, getNearbySpots } = require('../controllers/spotController');
+import express from 'express';
+import authMiddleware from '../middleware/authMiddleware.js';
+import { listSpots, createSpot, deleteSpot, toggleSpot, getNearbySpots } from '../controllers/spotController.js';
 
 const router = express.Router();
 
+router.get('', authMiddleware, listSpots);
 router.post('/create', authMiddleware, createSpot);
+router.delete('/:id', authMiddleware, deleteSpot);
 router.patch('/:id/toggle', authMiddleware, toggleSpot);
 router.get('/nearby', getNearbySpots);
 
-module.exports = router;
+export default router;

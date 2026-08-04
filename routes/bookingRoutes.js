@@ -1,17 +1,13 @@
-const express = require('express');
-const authMiddleware = require('../middleware/authMiddleware');
-const {
-  requestBooking,
-  respondToBooking,
-  checkInBooking,
-  checkOutBooking,
-} = require('../controllers/bookingController');
+import express from 'express';
+import authMiddleware from '../middleware/authMiddleware.js';
+import { listBookings, requestBooking, respondToBooking, checkInBooking, checkOutBooking } from '../controllers/bookingController.js';
 
 const router = express.Router();
 
+router.get('', authMiddleware, listBookings);
 router.post('/request', authMiddleware, requestBooking);
 router.patch('/:id/respond', authMiddleware, respondToBooking);
 router.patch('/:id/checkin', authMiddleware, checkInBooking);
 router.patch('/:id/checkout', authMiddleware, checkOutBooking);
 
-module.exports = router;
+export default router;

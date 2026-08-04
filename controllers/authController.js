@@ -1,6 +1,6 @@
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'peerpark-dev-secret';
 
@@ -16,7 +16,7 @@ const generateToken = (user) => {
   );
 };
 
-const register = async (req, res) => {
+export const register = async (req, res) => {
   try {
     const { full_name, email, password, phone_number, role } = req.body;
 
@@ -57,7 +57,7 @@ const register = async (req, res) => {
   }
 };
 
-const login = async (req, res) => {
+export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -91,9 +91,4 @@ const login = async (req, res) => {
   } catch (error) {
     return res.status(500).json({ message: 'Failed to login user.', error: error.message });
   }
-};
-
-module.exports = {
-  register,
-  login,
 };
