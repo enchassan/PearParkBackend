@@ -65,7 +65,8 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: 'Email and password are required.' });
     }
 
-    const user = await User.findOne({ email });
+    // Explicitly select password_hash in case select: false is set in User schema
+    const user = await User.findOne({ email }).select('+password_hash');
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials.' });
     }
