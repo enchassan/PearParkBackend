@@ -17,9 +17,9 @@ import User from './models/User.js';
 dotenv.config();
 
 const app = express();
-const DEFAULT_ADMIN_EMAIL = (process.env.DEFAULT_ADMIN_EMAIL || 'admin@peerpark.com').toLowerCase();
-const DEFAULT_ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD || 'Admin@123';
-const DEFAULT_ADMIN_NAME = process.env.DEFAULT_ADMIN_NAME || 'Admin Hassan';
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || process.env.DEFAULT_ADMIN_EMAIL || 'admin@peerpark.com').toLowerCase();
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || process.env.DEFAULT_ADMIN_PASSWORD || 'Admin@123';
+const ADMIN_NAME = process.env.ADMIN_NAME || process.env.DEFAULT_ADMIN_NAME || 'Admin Hassan';
 
 app.use(cors());
 app.use(express.json());
@@ -27,32 +27,32 @@ app.use(express.urlencoded({ extended: true }));
 
 const seedDefaultAdmin = async () => {
   try {
-    const existingAdmin = await User.findOne({ email: DEFAULT_ADMIN_EMAIL });
+    const existingAdmin = await User.findOne({ email: ADMIN_EMAIL });
 
     if (!existingAdmin) {
-      const password_hash = await bcrypt.hash(DEFAULT_ADMIN_PASSWORD, 10);
+      const password_hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
 
       await User.create({
-        full_name: DEFAULT_ADMIN_NAME,
-        email: DEFAULT_ADMIN_EMAIL,
+        full_name: ADMIN_NAME,
+        email: ADMIN_EMAIL,
         password_hash,
         phone_number: '+923000000000',
         role: 'SuperAdmin',
       });
 
-      console.log(`🛡️ Default admin created for ${DEFAULT_ADMIN_EMAIL}`);
+      console.log(`🛡️ Default admin created for ${ADMIN_EMAIL}`);
       return;
     }
 
-    const password_hash = await bcrypt.hash(DEFAULT_ADMIN_PASSWORD, 10);
+    const password_hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
     await User.findByIdAndUpdate(existingAdmin._id, {
-      full_name: existingAdmin.full_name || DEFAULT_ADMIN_NAME,
+      full_name: existingAdmin.full_name || ADMIN_NAME,
       role: 'SuperAdmin',
       phone_number: existingAdmin.phone_number || '+923000000000',
       password_hash,
     });
 
-    console.log(`🔐 Admin account ensured for ${DEFAULT_ADMIN_EMAIL}`);
+    console.log(`🔐 Admin account ensured for ${ADMIN_EMAIL}`);
   } catch (error) {
     console.error('❌ Failed to seed admin account:', error.message);
   }

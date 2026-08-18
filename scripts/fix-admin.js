@@ -4,11 +4,11 @@ import mongoose from 'mongoose';
 
 dotenv.config();
 
-const email = process.env.ADMIN_EMAIL;
-const password = process.env.ADMIN_PASSWORD;
+const email = (process.env.ADMIN_EMAIL || process.env.DEFAULT_ADMIN_EMAIL || '').toLowerCase();
+const password = process.env.ADMIN_PASSWORD || process.env.DEFAULT_ADMIN_PASSWORD;
 
 if (!email || !password) {
-  console.error('Missing ADMIN_EMAIL or ADMIN_PASSWORD in environment variables.');
+  console.error('Missing admin credentials in environment variables. Expected ADMIN_EMAIL/ADMIN_PASSWORD or DEFAULT_ADMIN_EMAIL/DEFAULT_ADMIN_PASSWORD.');
   process.exit(1);
 }
 
