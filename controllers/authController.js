@@ -18,25 +18,36 @@ const generateToken = (user) => {
 
 export const register = async (req, res) => {
   try {
-    const { full_name, email, password, phone_number, role } = req.body;
+    const { full_name, email, password, phone_number, role, cnic_matrix } = req.body;
 
     if (!full_name || !email || !password || !phone_number) {
       return res.status(400).json({ message: 'All required fields must be provided.' });
     }
 
-    const existingUser = await User.findOne({ email });
+    const normalizedEmail = email.trim().toLowerCase();
+    const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
       return res.status(409).json({ message: 'A user with this email already exists.' });
     }
 
     const password_hash = await bcrypt.hash(password, 10);
+    const assignedRole = role || 'Driver';
+
+    // Hosts start unverified pending admin audit; drivers are auto-verified
+    const is_profile_verified = assignedRole === 'Driver';
 
     const user = await User.create({
-      full_name,
-      email,
+      full_name: full_name.trim(),
+      email: normalizedEmail,
       password_hash,
-      phone_number,
-      role: role || 'Driver',
+      phone_number: phone_number.trim(),
+      role: assignedRole,
+      is_profile_verified,
+      cnic_matrix: {
+        cnic_number: cnic_matrix?.cnic_number || '',
+        cnic_front_url: cnic_matrix?.cnic_front_url || '',
+        cnic_back_url: cnic_matrix?.cnic_back_url || '',
+      },
     });
 
     const token = generateToken(user);
@@ -50,6 +61,8 @@ export const register = async (req, res) => {
         email: user.email,
         phone_number: user.phone_number,
         role: user.role,
+        is_profile_verified: user.is_profile_verified,
+        cnic_matrix: user.cnic_matrix,
       },
     });
   } catch (error) {
@@ -65,8 +78,8 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: 'Email and password are required.' });
     }
 
-    // Explicitly select password_hash in case select: false is set in User schema
-    const user = await User.findOne({ email }).select('+password_hash');
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail }).select('+password_hash');
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials.' });
     }
@@ -87,6 +100,8 @@ export const login = async (req, res) => {
         email: user.email,
         phone_number: user.phone_number,
         role: user.role,
+        is_profile_verified: user.is_profile_verified,
+        cnic_matrix: user.cnic_matrix,
       },
     });
   } catch (error) {
