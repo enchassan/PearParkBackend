@@ -76,4 +76,4 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/admin', adminRoutes);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`📡 Backend active on port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`📡 Backend active on port ${PORT} (0.0.0.0)`));
