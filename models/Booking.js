@@ -37,6 +37,15 @@ const bookingSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    rating: {
+      type: Number,
+      default: 5,
+    },
+    payment_gateway: {
+      type: String,
+      enum: ['JazzCash', 'EasyPaisa'],
+      default: 'EasyPaisa',
+    },
     booking_status: {
       type: String,
       enum: ['Pending', 'Awaiting_Payment', 'Confirmed', 'Active_Parking', 'Completed', 'Declined', 'Expired'],

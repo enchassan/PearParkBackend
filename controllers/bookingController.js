@@ -1,5 +1,6 @@
 import Booking from '../models/Booking.js';
 import Spot from '../models/Spot.js';
+import Payment from '../models/Payment.js';
 
 export const listBookings = async (req, res) => {
   try {
@@ -107,6 +108,7 @@ export const checkInBooking = async (req, res) => {
 export const checkOutBooking = async (req, res) => {
   try {
     const { id } = req.params;
+    const { rating, payment_gateway } = req.body;
 
     const booking = await Booking.findById(id);
     if (!booking) {
@@ -119,10 +121,23 @@ export const checkOutBooking = async (req, res) => {
 
     booking.actual_checkout = new Date();
     booking.booking_status = 'Completed';
+    if (rating) booking.rating = Number(rating);
+    if (payment_gateway) booking.payment_gateway = payment_gateway;
     await booking.save();
+
+    // Create settled escrow record in Payment ledger
+    await Payment.create({
+      booking_id: booking._id,
+      gateway_provider: payment_gateway || 'EasyPaisa',
+      transaction_id: `TXN-${Date.now().toString().slice(-6)}`,
+      amount_pkr: booking.total_fee || 300,
+      escrow_status: 'Settled',
+    });
 
     return res.status(200).json({ message: 'Driver checked out successfully.', booking });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to check out booking.', error: error.message });
   }
 };
+
+
