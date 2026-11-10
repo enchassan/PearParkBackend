@@ -156,3 +156,26 @@ export const getNearbySpots = async (req, res) => {
     return res.status(500).json({ message: 'Failed to fetch nearby spots.', error: error.message });
   }
 };
+
+export const getSpotSchedule = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const now = new Date();
+
+    // Fetch active/confirmed bookings that haven't ended yet
+    const upcomingBookings = await Booking.find({
+      spot_id: id,
+      booking_status: { $in: ['Pending', 'Confirmed', 'Active_Parking'] },
+      scheduled_checkout: { $gte: now },
+    })
+      .select('scheduled_checkin scheduled_checkout booking_status')
+      .sort({ scheduled_checkin: 1 });
+
+    return res.status(200).json({
+      message: 'Spot schedule fetched.',
+      bookings: upcomingBookings,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to fetch spot schedule.', error: error.message });
+  }
+};

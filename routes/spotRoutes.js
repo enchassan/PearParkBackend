@@ -7,6 +7,7 @@ import {
   deleteSpot,
   toggleSpot,
   getNearbySpots,
+  getSpotSchedule,
 } from '../controllers/spotController.js';
 
 const router = express.Router();
@@ -16,6 +17,7 @@ router.get('/nearby', getNearbySpots);
 
 // Host & authenticated spot routes
 router.get('/my', authMiddleware, getMySpots);
+router.get('/:id/schedule', getSpotSchedule);
 router.get('', authMiddleware, listSpots);
 router.post('/create', authMiddleware, createSpot);
 router.delete('/:id', authMiddleware, deleteSpot);

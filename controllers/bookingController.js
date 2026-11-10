@@ -2,7 +2,7 @@ import Booking from '../models/Booking.js';
 import Spot from '../models/Spot.js';
 import Payment from '../models/Payment.js';
 
-// 1. List Bookings (Scoped by Role)
+// 1. List Bookings (Scoped by User Role)
 export const listBookings = async (req, res) => {
   try {
     let filter = {};
@@ -28,7 +28,7 @@ export const listBookings = async (req, res) => {
   }
 };
 
-// 2. Request Booking with Double-Booking Collision Prevention (FR-09)
+// 2. Request Booking with Double-Booking Collision Prevention & 15-min Buffer (FR-09)
 export const requestBooking = async (req, res) => {
   try {
     const { spot_id, scheduled_checkin, scheduled_checkout } = req.body;
@@ -60,19 +60,30 @@ export const requestBooking = async (req, res) => {
       return res.status(400).json({ message: 'Hosts cannot reserve their own parking space.' });
     }
 
-    // Double-Booking Collision Query: Check for overlapping active reservations
-    const collision = await Booking.findOne({
+    // 15-minute turnaround safety buffer (in milliseconds)
+    const BUFFER_MS = 15 * 60 * 1000;
+
+    // Fetch existing active or pending reservations for this parking space
+    const existingBookings = await Booking.find({
       spot_id,
       booking_status: { $in: ['Pending', 'Confirmed', 'Active_Parking'] },
-      $and: [
-        { scheduled_checkin: { $lt: checkoutDate } },
-        { scheduled_checkout: { $gt: checkinDate } },
-      ],
     });
 
-    if (collision) {
+    const hasCollision = existingBookings.some((b) => {
+      const existingStart = new Date(b.scheduled_checkin).getTime();
+      // Add 15 min buffer to the existing checkout
+      const existingEndWithBuffer = new Date(b.scheduled_checkout).getTime() + BUFFER_MS;
+
+      const reqStart = checkinDate.getTime();
+      const reqEnd = checkoutDate.getTime();
+
+      // Check overlap between [reqStart, reqEnd] and [existingStart, existingEndWithBuffer]
+      return reqStart < existingEndWithBuffer && reqEnd > existingStart;
+    });
+
+    if (hasCollision) {
       return res.status(409).json({
-        message: 'Slot collision: This parking spot is already reserved for the selected timeframe. Please pick another time.',
+        message: 'Slot collision: This spot is occupied or within the 15-minute turnaround buffer. Please choose a later arrival window.',
       });
     }
 
