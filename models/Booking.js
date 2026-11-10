@@ -37,6 +37,14 @@ const bookingSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    overstay_hours: {
+      type: Number,
+      default: 0,
+    },
+    overstay_fee: {
+      type: Number,
+      default: 0,
+    },
     rating: {
       type: Number,
       default: 5,

@@ -175,13 +175,13 @@ export const checkInBooking = async (req, res) => {
   }
 };
 
-// 5. Driver Check-Out & Payment Settlement (FR-13, FR-14, FR-15)
+// 5. Driver Check-Out & Overstay Penalty Settlement (FR-13, FR-14, FR-16)
 export const checkOutBooking = async (req, res) => {
   try {
     const { id } = req.params;
     const { rating, payment_gateway } = req.body;
 
-    const booking = await Booking.findById(id);
+    const booking = await Booking.findById(id).populate('spot_id', 'street_address hourly_rate');
     if (!booking) {
       return res.status(404).json({ message: 'Booking not found.' });
     }
@@ -190,22 +190,51 @@ export const checkOutBooking = async (req, res) => {
       return res.status(403).json({ message: 'You are not authorized to check out this booking.' });
     }
 
-    booking.actual_checkout = new Date();
+    const now = new Date();
+    booking.actual_checkout = now;
     booking.booking_status = 'Completed';
+
+    // OVERSTAY PENALTY ALGORITHM (Rs. 100/hr)
+    const scheduledEnd = new Date(booking.scheduled_checkout).getTime();
+    const actualEnd = now.getTime();
+    const GRACE_PERIOD_MS = 5 * 60 * 1000; // 5-minute courtesy grace period
+    const PENALTY_RATE_PER_HOUR = 100;     // Rs. 100/hr flat overstay penalty
+
+    let overstayHours = 0;
+    let overstayFee = 0;
+
+    if (actualEnd > scheduledEnd + GRACE_PERIOD_MS) {
+      const overstayDurationMs = actualEnd - scheduledEnd;
+      overstayHours = Math.ceil(overstayDurationMs / (1000 * 60 * 60)); // rounded up to next hour
+      overstayFee = overstayHours * PENALTY_RATE_PER_HOUR;
+    }
+
+    booking.overstay_hours = overstayHours;
+    booking.overstay_fee = overstayFee;
+    booking.total_fee = Number(booking.total_fee || 0) + overstayFee;
+
     if (rating) booking.rating = Number(rating);
     if (payment_gateway) booking.payment_gateway = payment_gateway;
     await booking.save();
 
-    // Create settled escrow record in Payment collection
+    // Settle in Payment ledger with updated total fee
     await Payment.create({
       booking_id: booking._id,
       gateway_provider: payment_gateway || 'EasyPaisa',
       transaction_id: `TXN-${Date.now().toString().slice(-6)}`,
-      amount_pkr: booking.total_fee || 300,
+      amount_pkr: booking.total_fee,
       escrow_status: 'Settled',
     });
 
-    return res.status(200).json({ message: 'Driver checked out successfully.', booking });
+    return res.status(200).json({
+      message: 'Driver checked out successfully.',
+      booking,
+      overstay: {
+        hours: overstayHours,
+        fee: overstayFee,
+        isPenalized: overstayFee > 0,
+      },
+    });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to check out booking.', error: error.message });
   }
