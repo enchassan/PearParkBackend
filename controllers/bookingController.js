@@ -127,7 +127,7 @@ export const respondToBooking = async (req, res) => {
   }
 };
 
-// 4. Driver Check-In (FR-12)
+// 4. Driver Check-In (FR-12) - Enforcing Single Active Parking Session
 export const checkInBooking = async (req, res) => {
   try {
     const { id } = req.params;
@@ -139,6 +139,19 @@ export const checkInBooking = async (req, res) => {
 
     if (booking.driver_id.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'You are not authorized to check in this booking.' });
+    }
+
+    // Guardrail: A driver cannot have more than ONE active parking session at a time
+    const existingActive = await Booking.findOne({
+      driver_id: req.user._id,
+      booking_status: 'Active_Parking',
+      _id: { $ne: booking._id },
+    }).populate('spot_id', 'street_address');
+
+    if (existingActive) {
+      return res.status(400).json({
+        message: `Active parking in progress: You are currently parked at "${existingActive.spot_id?.street_address || 'another spot'}". You must check out and pay before checking into another space.`,
+      });
     }
 
     booking.actual_checkin = new Date();
