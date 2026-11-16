@@ -38,7 +38,15 @@ export const getMySpots = async (req, res) => {
 // 3. Create a New Parking Spot
 export const createSpot = async (req, res) => {
   try {
-    const { street_address, hourly_rate, spot_images, is_active, spot_status, location } = req.body;
+    const {
+      street_address,
+      special_instructions,
+      hourly_rate,
+      spot_images,
+      is_active,
+      spot_status,
+      location,
+    } = req.body;
 
     if (!req.user || !req.user._id) {
       return res.status(401).json({ message: 'Authentication required to create a spot.' });
@@ -62,6 +70,7 @@ export const createSpot = async (req, res) => {
     const spot = await Spot.create({
       host_id: req.user._id,
       street_address: street_address.trim(),
+      special_instructions: special_instructions ? special_instructions.trim() : '',
       hourly_rate: Number(hourly_rate),
       spot_images: spot_images || [],
       is_active: is_active !== undefined ? is_active : true,

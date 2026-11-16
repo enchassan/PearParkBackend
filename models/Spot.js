@@ -12,6 +12,11 @@ const spotSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    special_instructions: {
+      type: String,
+      default: '',
+      trim: true,
+    },
     hourly_rate: {
       type: Number,
       required: true,
