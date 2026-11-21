@@ -19,7 +19,7 @@ export const listBookings = async (req, res) => {
     const bookings = await Booking.find(filter)
       .populate('driver_id', 'full_name email phone_number')
       .populate('host_id', 'full_name email phone_number')
-      .populate('spot_id', 'street_address hourly_rate')
+      .populate('spot_id', 'street_address hourly_rate special_instructions location')
       .sort({ createdAt: -1 });
 
     return res.status(200).json({ message: 'Bookings fetched successfully.', bookings });
