@@ -146,3 +146,66 @@ export const getMe = async (req, res) => {
       .json({ message: 'Failed to fetch profile.', error: error.message });
   }
 };
+
+export const updateProfile = async (req, res) => {
+  try {
+    const { full_name, phone_number, current_password, new_password } =
+      req.body;
+
+    const user = await User.findById(req.user._id).select('+password_hash');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    if (full_name && full_name.trim()) {
+      user.full_name = full_name.trim();
+    }
+    if (phone_number && phone_number.trim()) {
+      user.phone_number = phone_number.trim();
+    }
+
+    if (new_password) {
+      if (!current_password) {
+        return res
+          .status(400)
+          .json({
+            message: 'Current password is required to set a new password.',
+          });
+      }
+      if (new_password.length < 6) {
+        return res
+          .status(400)
+          .json({ message: 'New password must be at least 6 characters.' });
+      }
+      const isMatch = await bcrypt.compare(
+        current_password,
+        user.password_hash,
+      );
+      if (!isMatch) {
+        return res
+          .status(401)
+          .json({ message: 'Current password is incorrect.' });
+      }
+      user.password_hash = await bcrypt.hash(new_password, 10);
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      message: 'Profile updated successfully.',
+      user: {
+        id: user._id,
+        full_name: user.full_name,
+        email: user.email,
+        phone_number: user.phone_number,
+        role: user.role,
+        is_profile_verified: user.is_profile_verified,
+        cnic_matrix: user.cnic_matrix,
+      },
+    });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: 'Failed to update profile.', error: error.message });
+  }
+};
