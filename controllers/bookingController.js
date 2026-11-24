@@ -179,7 +179,7 @@ export const checkInBooking = async (req, res) => {
 export const checkOutBooking = async (req, res) => {
   try {
     const { id } = req.params;
-    const { rating, payment_gateway } = req.body;
+    const { rating, review_comment, payment_gateway } = req.body;
 
     const booking = await Booking.findById(id).populate('spot_id', 'street_address hourly_rate');
     if (!booking) {
@@ -213,7 +213,8 @@ export const checkOutBooking = async (req, res) => {
     booking.overstay_fee = overstayFee;
     booking.total_fee = Number(booking.total_fee || 0) + overstayFee;
 
-    if (rating) booking.rating = Number(rating);
+    if (rating) booking.rating = Math.min(5, Math.max(1, Number(rating)));
+    if (typeof review_comment === 'string') booking.review_comment = review_comment.trim();
     if (payment_gateway) booking.payment_gateway = payment_gateway;
     await booking.save();
 

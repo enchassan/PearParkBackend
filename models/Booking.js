@@ -49,6 +49,11 @@ const bookingSchema = new mongoose.Schema(
       type: Number,
       default: 5,
     },
+    review_comment: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     payment_gateway: {
       type: String,
       enum: ['JazzCash', 'EasyPaisa'],

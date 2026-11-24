@@ -165,7 +165,40 @@ export const getNearbySpots = async (req, res) => {
       spot_status: { $in: ['Approved', 'Pending'] },
     }).populate('host_id', 'full_name email phone_number');
 
-    return res.status(200).json({ message: 'Nearby spots fetched successfully.', spots });
+    const hostIds = [...new Set(spots.map((s) => s.host_id?._id).filter(Boolean))];
+    const ratingStats = await Booking.aggregate([
+      {
+        $match: {
+          host_id: { $in: hostIds },
+          booking_status: 'Completed',
+          rating: { $gte: 1 },
+        },
+      },
+      {
+        $group: {
+          _id: '$host_id',
+          avgRating: { $avg: '$rating' },
+          reviewCount: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const ratingMap = new Map(
+      ratingStats.map((r) => [
+        r._id.toString(),
+        { avgRating: Math.round(r.avgRating * 10) / 10, reviewCount: r.reviewCount },
+      ])
+    );
+
+    const enrichedSpots = spots.map((s) => {
+      const obj = s.toObject();
+      const stats = obj.host_id?._id ? ratingMap.get(obj.host_id._id.toString()) : null;
+      obj.host_rating = stats ? stats.avgRating : null;
+      obj.host_review_count = stats ? stats.reviewCount : 0;
+      return obj;
+    });
+
+    return res.status(200).json({ message: 'Nearby spots fetched successfully.', spots: enrichedSpots });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to fetch nearby spots.', error: error.message });
   }
