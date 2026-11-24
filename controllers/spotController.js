@@ -15,9 +15,13 @@ export const listSpots = async (req, res) => {
       .populate('host_id', 'full_name email phone_number')
       .sort({ createdAt: -1 });
 
-    return res.status(200).json({ message: 'Spots fetched successfully.', spots });
+    return res
+      .status(200)
+      .json({ message: 'Spots fetched successfully.', spots });
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to fetch spots.', error: error.message });
+    return res
+      .status(500)
+      .json({ message: 'Failed to fetch spots.', error: error.message });
   }
 };
 
@@ -28,10 +32,16 @@ export const getMySpots = async (req, res) => {
       return res.status(401).json({ message: 'Authentication required.' });
     }
 
-    const spots = await Spot.find({ host_id: req.user._id }).sort({ createdAt: -1 });
-    return res.status(200).json({ message: 'Host spots fetched successfully.', spots });
+    const spots = await Spot.find({ host_id: req.user._id }).sort({
+      createdAt: -1,
+    });
+    return res
+      .status(200)
+      .json({ message: 'Host spots fetched successfully.', spots });
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to fetch host spots.', error: error.message });
+    return res
+      .status(500)
+      .json({ message: 'Failed to fetch host spots.', error: error.message });
   }
 };
 
@@ -48,8 +58,11 @@ export const createSpot = async (req, res) => {
       location,
     } = req.body;
 
-    if (!req.user || !req.user._id) {
-      return res.status(401).json({ message: 'Authentication required to create a spot.' });
+    if (req.user.role === 'Host' && !req.user.is_profile_verified) {
+      return res.status(403).json({
+        message:
+          'Account pending CNIC verification. An admin must approve your profile before you can list spots.',
+      });
     }
 
     if (
@@ -60,7 +73,8 @@ export const createSpot = async (req, res) => {
       location.coordinates.length !== 2
     ) {
       return res.status(400).json({
-        message: 'street_address, hourly_rate, and valid location coordinates [lng, lat] are required.',
+        message:
+          'street_address, hourly_rate, and valid location coordinates [lng, lat] are required.',
       });
     }
 
@@ -70,7 +84,9 @@ export const createSpot = async (req, res) => {
     const spot = await Spot.create({
       host_id: req.user._id,
       street_address: street_address.trim(),
-      special_instructions: special_instructions ? special_instructions.trim() : '',
+      special_instructions: special_instructions
+        ? special_instructions.trim()
+        : '',
       hourly_rate: Number(hourly_rate),
       spot_images: spot_images || [],
       is_active: is_active !== undefined ? is_active : true,
@@ -81,9 +97,13 @@ export const createSpot = async (req, res) => {
       },
     });
 
-    return res.status(201).json({ message: 'Spot created successfully.', spot });
+    return res
+      .status(201)
+      .json({ message: 'Spot created successfully.', spot });
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to create spot.', error: error.message });
+    return res
+      .status(500)
+      .json({ message: 'Failed to create spot.', error: error.message });
   }
 };
 
@@ -91,7 +111,8 @@ export const createSpot = async (req, res) => {
 export const updateSpot = async (req, res) => {
   try {
     const { id } = req.params;
-    const { street_address, special_instructions, hourly_rate, location } = req.body;
+    const { street_address, special_instructions, hourly_rate, location } =
+      req.body;
 
     const spot = await Spot.findById(id);
     if (!spot) {
@@ -99,7 +120,9 @@ export const updateSpot = async (req, res) => {
     }
 
     if (spot.host_id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'You are not authorized to edit this spot.' });
+      return res
+        .status(403)
+        .json({ message: 'You are not authorized to edit this spot.' });
     }
 
     if (street_address !== undefined && street_address.trim()) {
@@ -108,20 +131,35 @@ export const updateSpot = async (req, res) => {
     if (special_instructions !== undefined) {
       spot.special_instructions = special_instructions.trim();
     }
-    if (hourly_rate !== undefined && !Number.isNaN(Number(hourly_rate)) && Number(hourly_rate) > 0) {
+    if (
+      hourly_rate !== undefined &&
+      !Number.isNaN(Number(hourly_rate)) &&
+      Number(hourly_rate) > 0
+    ) {
       spot.hourly_rate = Number(hourly_rate);
     }
-    if (location && Array.isArray(location.coordinates) && location.coordinates.length === 2) {
+    if (
+      location &&
+      Array.isArray(location.coordinates) &&
+      location.coordinates.length === 2
+    ) {
       spot.location = {
         type: 'Point',
-        coordinates: [Number(location.coordinates[0]), Number(location.coordinates[1])],
+        coordinates: [
+          Number(location.coordinates[0]),
+          Number(location.coordinates[1]),
+        ],
       };
     }
 
     await spot.save();
-    return res.status(200).json({ message: 'Spot updated successfully.', spot });
+    return res
+      .status(200)
+      .json({ message: 'Spot updated successfully.', spot });
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to update spot.', error: error.message });
+    return res
+      .status(500)
+      .json({ message: 'Failed to update spot.', error: error.message });
   }
 };
 
@@ -135,15 +173,22 @@ export const deleteSpot = async (req, res) => {
       return res.status(404).json({ message: 'Spot not found.' });
     }
 
-    if (spot.host_id.toString() !== req.user._id.toString() && req.user.role !== 'SuperAdmin') {
-      return res.status(403).json({ message: 'You are not authorized to delete this spot.' });
+    if (
+      spot.host_id.toString() !== req.user._id.toString() &&
+      req.user.role !== 'SuperAdmin'
+    ) {
+      return res
+        .status(403)
+        .json({ message: 'You are not authorized to delete this spot.' });
     }
 
     await spot.deleteOne();
 
     return res.status(200).json({ message: 'Spot deleted successfully.' });
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to delete spot.', error: error.message });
+    return res
+      .status(500)
+      .json({ message: 'Failed to delete spot.', error: error.message });
   }
 };
 
@@ -158,7 +203,9 @@ export const toggleSpot = async (req, res) => {
     }
 
     if (spot.host_id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'You are not authorized to toggle this spot.' });
+      return res
+        .status(403)
+        .json({ message: 'You are not authorized to toggle this spot.' });
     }
 
     spot.is_active = !spot.is_active;
@@ -169,7 +216,9 @@ export const toggleSpot = async (req, res) => {
       spot,
     });
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to toggle spot.', error: error.message });
+    return res
+      .status(500)
+      .json({ message: 'Failed to toggle spot.', error: error.message });
   }
 };
 
@@ -179,7 +228,9 @@ export const getNearbySpots = async (req, res) => {
     const { lat, lng, radius, maxPrice } = req.query;
 
     if (!lat || !lng) {
-      return res.status(400).json({ message: 'lat and lng query parameters are required.' });
+      return res
+        .status(400)
+        .json({ message: 'lat and lng query parameters are required.' });
     }
 
     const parsedLat = Number(lat);
@@ -188,7 +239,9 @@ export const getNearbySpots = async (req, res) => {
     const parsedMaxPrice = Number(maxPrice || Number.MAX_SAFE_INTEGER);
 
     if (Number.isNaN(parsedLat) || Number.isNaN(parsedLng)) {
-      return res.status(400).json({ message: 'lat and lng must be valid numbers.' });
+      return res
+        .status(400)
+        .json({ message: 'lat and lng must be valid numbers.' });
     }
 
     const spots = await Spot.find({
@@ -203,7 +256,9 @@ export const getNearbySpots = async (req, res) => {
       spot_status: { $in: ['Approved', 'Pending'] },
     }).populate('host_id', 'full_name email phone_number');
 
-    const hostIds = [...new Set(spots.map((s) => s.host_id?._id).filter(Boolean))];
+    const hostIds = [
+      ...new Set(spots.map((s) => s.host_id?._id).filter(Boolean)),
+    ];
     const ratingStats = await Booking.aggregate([
       {
         $match: {
@@ -224,21 +279,33 @@ export const getNearbySpots = async (req, res) => {
     const ratingMap = new Map(
       ratingStats.map((r) => [
         r._id.toString(),
-        { avgRating: Math.round(r.avgRating * 10) / 10, reviewCount: r.reviewCount },
-      ])
+        {
+          avgRating: Math.round(r.avgRating * 10) / 10,
+          reviewCount: r.reviewCount,
+        },
+      ]),
     );
 
     const enrichedSpots = spots.map((s) => {
       const obj = s.toObject();
-      const stats = obj.host_id?._id ? ratingMap.get(obj.host_id._id.toString()) : null;
+      const stats = obj.host_id?._id
+        ? ratingMap.get(obj.host_id._id.toString())
+        : null;
       obj.host_rating = stats ? stats.avgRating : null;
       obj.host_review_count = stats ? stats.reviewCount : 0;
       return obj;
     });
 
-    return res.status(200).json({ message: 'Nearby spots fetched successfully.', spots: enrichedSpots });
+    return res
+      .status(200)
+      .json({
+        message: 'Nearby spots fetched successfully.',
+        spots: enrichedSpots,
+      });
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to fetch nearby spots.', error: error.message });
+    return res
+      .status(500)
+      .json({ message: 'Failed to fetch nearby spots.', error: error.message });
   }
 };
 
@@ -275,13 +342,18 @@ export const getSpotSchedule = async (req, res) => {
 
     // 15-minute turnaround buffer calculation
     const BUFFER_MS = 15 * 60 * 1000;
-    const nextAvailableDate = new Date(activeBooking.scheduled_checkout.getTime() + BUFFER_MS);
+    const nextAvailableDate = new Date(
+      activeBooking.scheduled_checkout.getTime() + BUFFER_MS,
+    );
 
-    const untilTimeStr = activeBooking.scheduled_checkout.toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
+    const untilTimeStr = activeBooking.scheduled_checkout.toLocaleTimeString(
+      [],
+      {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      },
+    );
 
     const nextFreeStr = nextAvailableDate.toLocaleTimeString([], {
       hour: '2-digit',
@@ -296,6 +368,8 @@ export const getSpotSchedule = async (req, res) => {
       bookings: upcomingBookings,
     });
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to fetch schedule.', error: error.message });
+    return res
+      .status(500)
+      .json({ message: 'Failed to fetch schedule.', error: error.message });
   }
 };

@@ -12,22 +12,27 @@ const generateToken = (user) => {
       role: user.role,
     },
     JWT_SECRET,
-    { expiresIn: '30d' }
+    { expiresIn: '30d' },
   );
 };
 
 export const register = async (req, res) => {
   try {
-    const { full_name, email, password, phone_number, role, cnic_matrix } = req.body;
+    const { full_name, email, password, phone_number, role, cnic_matrix } =
+      req.body;
 
     if (!full_name || !email || !password || !phone_number) {
-      return res.status(400).json({ message: 'All required fields must be provided.' });
+      return res
+        .status(400)
+        .json({ message: 'All required fields must be provided.' });
     }
 
     const normalizedEmail = email.trim().toLowerCase();
     const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
-      return res.status(409).json({ message: 'A user with this email already exists.' });
+      return res
+        .status(409)
+        .json({ message: 'A user with this email already exists.' });
     }
 
     const password_hash = await bcrypt.hash(password, 10);
@@ -66,7 +71,9 @@ export const register = async (req, res) => {
       },
     });
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to register user.', error: error.message });
+    return res
+      .status(500)
+      .json({ message: 'Failed to register user.', error: error.message });
   }
 };
 
@@ -75,11 +82,15 @@ export const login = async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required.' });
+      return res
+        .status(400)
+        .json({ message: 'Email and password are required.' });
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    const user = await User.findOne({ email: normalizedEmail }).select('+password_hash');
+    const user = await User.findOne({ email: normalizedEmail }).select(
+      '+password_hash',
+    );
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials.' });
     }
@@ -105,6 +116,33 @@ export const login = async (req, res) => {
       },
     });
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to login user.', error: error.message });
+    return res
+      .status(500)
+      .json({ message: 'Failed to login user.', error: error.message });
+  }
+};
+
+export const getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('-password_hash');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    return res.status(200).json({
+      user: {
+        id: user._id,
+        full_name: user.full_name,
+        email: user.email,
+        phone_number: user.phone_number,
+        role: user.role,
+        is_profile_verified: user.is_profile_verified,
+        cnic_matrix: user.cnic_matrix,
+      },
+    });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: 'Failed to fetch profile.', error: error.message });
   }
 };
