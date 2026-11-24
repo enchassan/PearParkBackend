@@ -19,12 +19,19 @@ export const listBookings = async (req, res) => {
     const bookings = await Booking.find(filter)
       .populate('driver_id', 'full_name email phone_number')
       .populate('host_id', 'full_name email phone_number')
-      .populate('spot_id', 'street_address hourly_rate special_instructions location')
+      .populate(
+        'spot_id',
+        'street_address hourly_rate special_instructions location',
+      )
       .sort({ createdAt: -1 });
 
-    return res.status(200).json({ message: 'Bookings fetched successfully.', bookings });
+    return res
+      .status(200)
+      .json({ message: 'Bookings fetched successfully.', bookings });
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to fetch bookings.', error: error.message });
+    return res
+      .status(500)
+      .json({ message: 'Failed to fetch bookings.', error: error.message });
   }
 };
 
@@ -34,20 +41,34 @@ export const requestBooking = async (req, res) => {
     const { spot_id, scheduled_checkin, scheduled_checkout } = req.body;
 
     if (!req.user || !req.user._id) {
-      return res.status(401).json({ message: 'Authentication required to request a booking.' });
+      return res
+        .status(401)
+        .json({ message: 'Authentication required to request a booking.' });
     }
 
     if (!spot_id || !scheduled_checkin || !scheduled_checkout) {
       return res.status(400).json({
-        message: 'spot_id, scheduled_checkin, and scheduled_checkout are required.',
+        message:
+          'spot_id, scheduled_checkin, and scheduled_checkout are required.',
       });
     }
 
     const checkinDate = new Date(scheduled_checkin);
     const checkoutDate = new Date(scheduled_checkout);
 
+    if (
+      Number.isNaN(checkinDate.getTime()) ||
+      Number.isNaN(checkoutDate.getTime())
+    ) {
+      return res
+        .status(400)
+        .json({ message: 'Invalid checkin or checkout date format.' });
+    }
+
     if (checkoutDate <= checkinDate) {
-      return res.status(400).json({ message: 'Checkout time must be after checkin time.' });
+      return res
+        .status(400)
+        .json({ message: 'Checkout time must be after checkin time.' });
     }
 
     const spot = await Spot.findById(spot_id);
@@ -55,9 +76,18 @@ export const requestBooking = async (req, res) => {
       return res.status(404).json({ message: 'Spot not found.' });
     }
 
+    // Block hidden or admin-suspended spots
+    if (!spot.is_active || spot.spot_status === 'Suspended') {
+      return res.status(400).json({
+        message: 'This parking spot is currently unavailable for booking.',
+      });
+    }
+
     // Host cannot book their own spot
     if (spot.host_id.toString() === req.user._id.toString()) {
-      return res.status(400).json({ message: 'Hosts cannot reserve their own parking space.' });
+      return res
+        .status(400)
+        .json({ message: 'Hosts cannot reserve their own parking space.' });
     }
 
     // 15-minute turnaround safety buffer (in milliseconds)
@@ -71,25 +101,27 @@ export const requestBooking = async (req, res) => {
 
     const hasCollision = existingBookings.some((b) => {
       const existingStart = new Date(b.scheduled_checkin).getTime();
-      // Add 15 min buffer to the existing checkout
-      const existingEndWithBuffer = new Date(b.scheduled_checkout).getTime() + BUFFER_MS;
+      const existingEndWithBuffer =
+        new Date(b.scheduled_checkout).getTime() + BUFFER_MS;
 
       const reqStart = checkinDate.getTime();
       const reqEnd = checkoutDate.getTime();
 
-      // Check overlap between [reqStart, reqEnd] and [existingStart, existingEndWithBuffer]
       return reqStart < existingEndWithBuffer && reqEnd > existingStart;
     });
 
     if (hasCollision) {
       return res.status(409).json({
-        message: 'Slot collision: This spot is occupied or within the 15-minute turnaround buffer. Please choose a later arrival window.',
+        message:
+          'Slot collision: This spot is occupied or within the 15-minute turnaround buffer. Please choose a later arrival window.',
       });
     }
 
     const durationHours = Math.max(
       1,
-      Math.ceil((checkoutDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60))
+      Math.ceil(
+        (checkoutDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60),
+      ),
     );
 
     const total_fee = durationHours * Number(spot.hourly_rate);
@@ -104,9 +136,13 @@ export const requestBooking = async (req, res) => {
       booking_status: 'Pending',
     });
 
-    return res.status(201).json({ message: 'Booking request submitted successfully.', booking });
+    return res
+      .status(201)
+      .json({ message: 'Booking request submitted successfully.', booking });
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to request booking.', error: error.message });
+    return res
+      .status(500)
+      .json({ message: 'Failed to request booking.', error: error.message });
   }
 };
 
@@ -117,7 +153,9 @@ export const respondToBooking = async (req, res) => {
     const { decision } = req.body;
 
     if (!['Accept', 'Decline'].includes(decision)) {
-      return res.status(400).json({ message: 'decision must be either Accept or Decline.' });
+      return res
+        .status(400)
+        .json({ message: 'decision must be either Accept or Decline.' });
     }
 
     const booking = await Booking.findById(id);
@@ -126,15 +164,28 @@ export const respondToBooking = async (req, res) => {
     }
 
     if (booking.host_id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'You are not authorized to respond to this booking.' });
+      return res.status(403).json({
+        message: 'You are not authorized to respond to this booking.',
+      });
+    }
+
+    if (booking.booking_status !== 'Pending') {
+      return res.status(400).json({
+        message: `Cannot respond to a booking that is already ${booking.booking_status}.`,
+      });
     }
 
     booking.booking_status = decision === 'Accept' ? 'Confirmed' : 'Declined';
     await booking.save();
 
-    return res.status(200).json({ message: `Booking ${decision.toLowerCase()}ed successfully.`, booking });
+    return res.status(200).json({
+      message: `Booking ${decision.toLowerCase()}ed successfully.`,
+      booking,
+    });
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to respond to booking.', error: error.message });
+    return res
+      .status(500)
+      .json({ message: 'Failed to respond to booking.', error: error.message });
   }
 };
 
@@ -149,7 +200,15 @@ export const checkInBooking = async (req, res) => {
     }
 
     if (booking.driver_id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'You are not authorized to check in this booking.' });
+      return res
+        .status(403)
+        .json({ message: 'You are not authorized to check in this booking.' });
+    }
+
+    if (booking.booking_status !== 'Confirmed') {
+      return res.status(400).json({
+        message: `Only confirmed bookings can be checked in (current status: ${booking.booking_status}).`,
+      });
     }
 
     // Guardrail: A driver cannot have more than ONE active parking session at a time
@@ -169,9 +228,13 @@ export const checkInBooking = async (req, res) => {
     booking.booking_status = 'Active_Parking';
     await booking.save();
 
-    return res.status(200).json({ message: 'Driver checked in successfully.', booking });
+    return res
+      .status(200)
+      .json({ message: 'Driver checked in successfully.', booking });
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to check in booking.', error: error.message });
+    return res
+      .status(500)
+      .json({ message: 'Failed to check in booking.', error: error.message });
   }
 };
 
@@ -181,13 +244,24 @@ export const checkOutBooking = async (req, res) => {
     const { id } = req.params;
     const { rating, review_comment, payment_gateway } = req.body;
 
-    const booking = await Booking.findById(id).populate('spot_id', 'street_address hourly_rate');
+    const booking = await Booking.findById(id).populate(
+      'spot_id',
+      'street_address hourly_rate',
+    );
     if (!booking) {
       return res.status(404).json({ message: 'Booking not found.' });
     }
 
     if (booking.driver_id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'You are not authorized to check out this booking.' });
+      return res
+        .status(403)
+        .json({ message: 'You are not authorized to check out this booking.' });
+    }
+
+    if (booking.booking_status !== 'Active_Parking') {
+      return res.status(400).json({
+        message: `Only active parking sessions can be checked out (current status: ${booking.booking_status}).`,
+      });
     }
 
     const now = new Date();
@@ -198,7 +272,7 @@ export const checkOutBooking = async (req, res) => {
     const scheduledEnd = new Date(booking.scheduled_checkout).getTime();
     const actualEnd = now.getTime();
     const GRACE_PERIOD_MS = 5 * 60 * 1000; // 5-minute courtesy grace period
-    const PENALTY_RATE_PER_HOUR = 100;     // Rs. 100/hr flat overstay penalty
+    const PENALTY_RATE_PER_HOUR = 100; // Rs. 100/hr flat overstay penalty
 
     let overstayHours = 0;
     let overstayFee = 0;
@@ -214,7 +288,8 @@ export const checkOutBooking = async (req, res) => {
     booking.total_fee = Number(booking.total_fee || 0) + overstayFee;
 
     if (rating) booking.rating = Math.min(5, Math.max(1, Number(rating)));
-    if (typeof review_comment === 'string') booking.review_comment = review_comment.trim();
+    if (typeof review_comment === 'string')
+      booking.review_comment = review_comment.trim();
     if (payment_gateway) booking.payment_gateway = payment_gateway;
     await booking.save();
 
@@ -237,7 +312,9 @@ export const checkOutBooking = async (req, res) => {
       },
     });
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to check out booking.', error: error.message });
+    return res
+      .status(500)
+      .json({ message: 'Failed to check out booking.', error: error.message });
   }
 };
 
@@ -252,7 +329,9 @@ export const cancelBooking = async (req, res) => {
     }
 
     if (booking.driver_id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'You are not authorized to cancel this booking.' });
+      return res
+        .status(403)
+        .json({ message: 'You are not authorized to cancel this booking.' });
     }
 
     if (!['Pending', 'Confirmed'].includes(booking.booking_status)) {
@@ -264,8 +343,12 @@ export const cancelBooking = async (req, res) => {
     booking.booking_status = 'Cancelled';
     await booking.save();
 
-    return res.status(200).json({ message: 'Booking cancelled successfully.', booking });
+    return res
+      .status(200)
+      .json({ message: 'Booking cancelled successfully.', booking });
   } catch (error) {
-    return res.status(500).json({ message: 'Failed to cancel booking.', error: error.message });
+    return res
+      .status(500)
+      .json({ message: 'Failed to cancel booking.', error: error.message });
   }
 };
