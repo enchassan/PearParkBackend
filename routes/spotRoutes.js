@@ -4,6 +4,7 @@ import {
   listSpots,
   getMySpots,
   createSpot,
+  updateSpot,
   deleteSpot,
   toggleSpot,
   getNearbySpots,
@@ -20,6 +21,7 @@ router.get('/:id/schedule', getSpotSchedule);
 router.get('/my', authMiddleware, getMySpots);
 router.get('', authMiddleware, listSpots);
 router.post('/create', authMiddleware, createSpot);
+router.patch('/:id', authMiddleware, updateSpot);
 router.delete('/:id', authMiddleware, deleteSpot);
 router.patch('/:id/toggle', authMiddleware, toggleSpot);
 

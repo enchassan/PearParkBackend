@@ -87,7 +87,45 @@ export const createSpot = async (req, res) => {
   }
 };
 
-// 4. Delete Spot
+// 4. Edit / Update Existing Parking Spot
+export const updateSpot = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { street_address, special_instructions, hourly_rate, location } = req.body;
+
+    const spot = await Spot.findById(id);
+    if (!spot) {
+      return res.status(404).json({ message: 'Spot not found.' });
+    }
+
+    if (spot.host_id.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'You are not authorized to edit this spot.' });
+    }
+
+    if (street_address !== undefined && street_address.trim()) {
+      spot.street_address = street_address.trim();
+    }
+    if (special_instructions !== undefined) {
+      spot.special_instructions = special_instructions.trim();
+    }
+    if (hourly_rate !== undefined && !Number.isNaN(Number(hourly_rate)) && Number(hourly_rate) > 0) {
+      spot.hourly_rate = Number(hourly_rate);
+    }
+    if (location && Array.isArray(location.coordinates) && location.coordinates.length === 2) {
+      spot.location = {
+        type: 'Point',
+        coordinates: [Number(location.coordinates[0]), Number(location.coordinates[1])],
+      };
+    }
+
+    await spot.save();
+    return res.status(200).json({ message: 'Spot updated successfully.', spot });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to update spot.', error: error.message });
+  }
+};
+
+// 5. Delete Spot
 export const deleteSpot = async (req, res) => {
   try {
     const { id } = req.params;
@@ -109,7 +147,7 @@ export const deleteSpot = async (req, res) => {
   }
 };
 
-// 5. Toggle Spot Visibility (Live / Hidden)
+// 6. Toggle Spot Visibility (Live / Hidden)
 export const toggleSpot = async (req, res) => {
   try {
     const { id } = req.params;
@@ -135,7 +173,7 @@ export const toggleSpot = async (req, res) => {
   }
 };
 
-// 6. Geospatial Search ($near query)
+// 7. Geospatial Search ($near query)
 export const getNearbySpots = async (req, res) => {
   try {
     const { lat, lng, radius, maxPrice } = req.query;
@@ -204,7 +242,7 @@ export const getNearbySpots = async (req, res) => {
   }
 };
 
-// 7. Get Live Spot Availability Status & Schedule
+// 8. Get Live Spot Availability Status & Schedule
 export const getSpotSchedule = async (req, res) => {
   try {
     const { id } = req.params;
